@@ -75,6 +75,7 @@ func (g *GoogleDriveProvider) Upload(ctx context.Context, localFilePath string, 
 	}
 
 	call := g.service.Files.Create(driveFile).
+		SupportsAllDrives(true).
 		Media(file).
 		Fields("id, name, mimeType, size, webViewLink").
 		Context(ctx)
