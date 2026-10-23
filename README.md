@@ -104,9 +104,20 @@ To stop, send `Ctrl+C` (`SIGINT`) or `SIGTERM`. Active generation runs will comp
 
 ---
 
+## Detailed Setup Guides
+
+Step-by-step guides for setting up external provider credentials:
+
+- 📖 **[Google Gemini API Setup Guide (Text & Video)](docs/setup_gemini_api.md)**: How to get an API key, model selection (`gemini-1.5-flash`, `veo-2.0-generate-001`), verification, and quotas.
+- 📖 **[Google Drive Storage Setup Guide](docs/setup_google_drive.md)**: How to create a Google Cloud Service Account, download `credentials.json`, share a destination folder, and get the `GDRIVE_FOLDER_ID`.
+
+---
+
 ## Provider Configuration
 
 ### 1. LLM Provider (Google Gemini API)
+*(See complete walkthrough in [docs/setup_gemini_api.md](docs/setup_gemini_api.md))*
+
 In `.env`:
 ```dotenv
 LLM_PROVIDER=gemini
