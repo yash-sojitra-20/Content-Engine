@@ -40,6 +40,18 @@ type Config struct {
 	GDriveCredentialsFile string
 	GDriveFolderID        string
 
+	// Social media publishing settings
+	SocialPublishEnabled   bool
+	SocialPlatform         string // "youtube", "mock"
+	YouTubeClientID        string
+	YouTubeClientSecret    string
+	YouTubeRefreshToken    string
+	YouTubeAccessToken     string
+	YouTubeCredentialsFile string
+	YouTubePrivacyStatus   string // "public", "unlisted", "private"
+	YouTubeCategoryID      string // e.g. "28" (Science & Technology)
+	YouTubeDefaultTags     string // comma-separated default tags
+
 	// Run history persistence settings
 	DBType      string // "sqlite", "postgres", "jsonl"
 	SQLitePath  string
@@ -65,34 +77,44 @@ func Load() (*Config, error) {
 	_ = godotenv.Load()
 
 	cfg := &Config{
-		RunMode:              getEnvOrDefault("RUN_MODE", "once"),
-		CronSchedule:         getEnvOrDefault("CRON_SCHEDULE", "0 */6 * * *"),
-		CronTimezone:         getEnvOrDefault("CRON_TIMEZONE", "UTC"),
-		LLMProvider:          strings.ToLower(getEnvOrDefault("LLM_PROVIDER", "gemini")),
-		GeminiAPIKey:         os.Getenv("GEMINI_API_KEY"),
-		GeminiModel:          getEnvOrDefault("GEMINI_MODEL", "gemini-1.5-flash"),
-		ContentTopicPrompt:   getEnvOrDefault("CONTENT_TOPIC_PROMPT", "Create a captivating 10-second tech or AI micro-fact video suitable for social reels and shorts."),
-		VideoProvider:        strings.ToLower(getEnvOrDefault("VIDEO_PROVIDER", "mock")),
-		VideoAPIKey:          os.Getenv("VIDEO_API_KEY"),
-		VideoModel:           getEnvOrDefault("VIDEO_MODEL", "veo-2.0-generate-001"),
-		VideoPollInterval:    getDurationOrDefault("VIDEO_POLL_INTERVAL", 10*time.Second),
-		VideoMaxWait:         getDurationOrDefault("VIDEO_MAX_WAIT", 10*time.Minute),
-		StorageProvider:      strings.ToLower(getEnvOrDefault("STORAGE_PROVIDER", "local")),
-		LocalStorageDir:      getEnvOrDefault("LOCAL_STORAGE_DIR", "data/videos"),
-		GDriveCredentialsFile: os.Getenv("GDRIVE_CREDENTIALS_FILE"),
-		GDriveFolderID:       os.Getenv("GDRIVE_FOLDER_ID"),
-		DBType:               strings.ToLower(getEnvOrDefault("DB_TYPE", "sqlite")),
-		SQLitePath:           getEnvOrDefault("SQLITE_PATH", "data/runs.db"),
-		DatabaseURL:          os.Getenv("DATABASE_URL"),
-		JSONLPath:            getEnvOrDefault("JSONL_PATH", "data/runs.jsonl"),
-		HTTPTimeout:          getDurationOrDefault("HTTP_TIMEOUT", 60*time.Second),
-		MaxRetries:           getIntOrDefault("MAX_RETRIES", 3),
-		RetryInitialInterval: getDurationOrDefault("RETRY_INITIAL_INTERVAL", 2*time.Second),
-		RetryMaxInterval:     getDurationOrDefault("RETRY_MAX_INTERVAL", 30*time.Second),
-		TmpDir:               getEnvOrDefault("TMP_DIR", "tmp"),
-		ShutdownGracePeriod:  getDurationOrDefault("SHUTDOWN_GRACE_PERIOD", 30*time.Second),
-		LogLevel:             strings.ToLower(getEnvOrDefault("LOG_LEVEL", "info")),
-		LogFormat:            strings.ToLower(getEnvOrDefault("LOG_FORMAT", "text")),
+		RunMode:                getEnvOrDefault("RUN_MODE", "once"),
+		CronSchedule:           getEnvOrDefault("CRON_SCHEDULE", "0 */6 * * *"),
+		CronTimezone:           getEnvOrDefault("CRON_TIMEZONE", "UTC"),
+		LLMProvider:            strings.ToLower(getEnvOrDefault("LLM_PROVIDER", "gemini")),
+		GeminiAPIKey:           os.Getenv("GEMINI_API_KEY"),
+		GeminiModel:            getEnvOrDefault("GEMINI_MODEL", "gemini-1.5-flash"),
+		ContentTopicPrompt:     getEnvOrDefault("CONTENT_TOPIC_PROMPT", "Create a captivating 10-second tech or AI micro-fact video suitable for social reels and shorts."),
+		VideoProvider:          strings.ToLower(getEnvOrDefault("VIDEO_PROVIDER", "mock")),
+		VideoAPIKey:            os.Getenv("VIDEO_API_KEY"),
+		VideoModel:             getEnvOrDefault("VIDEO_MODEL", "veo-2.0-generate-001"),
+		VideoPollInterval:      getDurationOrDefault("VIDEO_POLL_INTERVAL", 10*time.Second),
+		VideoMaxWait:           getDurationOrDefault("VIDEO_MAX_WAIT", 10*time.Minute),
+		StorageProvider:        strings.ToLower(getEnvOrDefault("STORAGE_PROVIDER", "local")),
+		LocalStorageDir:        getEnvOrDefault("LOCAL_STORAGE_DIR", "data/videos"),
+		GDriveCredentialsFile:  os.Getenv("GDRIVE_CREDENTIALS_FILE"),
+		GDriveFolderID:         os.Getenv("GDRIVE_FOLDER_ID"),
+		SocialPublishEnabled:   getBoolOrDefault("SOCIAL_PUBLISH_ENABLED", false),
+		SocialPlatform:         strings.ToLower(getEnvOrDefault("SOCIAL_PLATFORM", "mock")),
+		YouTubeClientID:        os.Getenv("YOUTUBE_CLIENT_ID"),
+		YouTubeClientSecret:    os.Getenv("YOUTUBE_CLIENT_SECRET"),
+		YouTubeRefreshToken:    os.Getenv("YOUTUBE_REFRESH_TOKEN"),
+		YouTubeAccessToken:     os.Getenv("YOUTUBE_ACCESS_TOKEN"),
+		YouTubeCredentialsFile: os.Getenv("YOUTUBE_CREDENTIALS_FILE"),
+		YouTubePrivacyStatus:   strings.ToLower(getEnvOrDefault("YOUTUBE_PRIVACY_STATUS", "public")),
+		YouTubeCategoryID:      getEnvOrDefault("YOUTUBE_CATEGORY_ID", "28"),
+		YouTubeDefaultTags:     getEnvOrDefault("YOUTUBE_DEFAULT_TAGS", "shorts,tech,ai,contentengine"),
+		DBType:                 strings.ToLower(getEnvOrDefault("DB_TYPE", "sqlite")),
+		SQLitePath:             getEnvOrDefault("SQLITE_PATH", "data/runs.db"),
+		DatabaseURL:            os.Getenv("DATABASE_URL"),
+		JSONLPath:              getEnvOrDefault("JSONL_PATH", "data/runs.jsonl"),
+		HTTPTimeout:            getDurationOrDefault("HTTP_TIMEOUT", 60*time.Second),
+		MaxRetries:             getIntOrDefault("MAX_RETRIES", 3),
+		RetryInitialInterval:   getDurationOrDefault("RETRY_INITIAL_INTERVAL", 2*time.Second),
+		RetryMaxInterval:       getDurationOrDefault("RETRY_MAX_INTERVAL", 30*time.Second),
+		TmpDir:                 getEnvOrDefault("TMP_DIR", "tmp"),
+		ShutdownGracePeriod:    getDurationOrDefault("SHUTDOWN_GRACE_PERIOD", 30*time.Second),
+		LogLevel:               strings.ToLower(getEnvOrDefault("LOG_LEVEL", "info")),
+		LogFormat:              strings.ToLower(getEnvOrDefault("LOG_FORMAT", "text")),
 	}
 
 	loc, err := time.LoadLocation(cfg.CronTimezone)
@@ -169,6 +191,33 @@ func (c *Config) Validate() error {
 		errs = append(errs, fmt.Sprintf("unsupported STORAGE_PROVIDER %q (supported: 'gdrive', 'local', 'mock')", c.StorageProvider))
 	}
 
+	// Validate Social Media Publishing Provider
+	if c.SocialPublishEnabled {
+		switch c.SocialPlatform {
+		case "youtube":
+			hasOAuth := strings.TrimSpace(c.YouTubeClientID) != "" &&
+				strings.TrimSpace(c.YouTubeClientSecret) != "" &&
+				strings.TrimSpace(c.YouTubeRefreshToken) != ""
+			hasCredFile := strings.TrimSpace(c.YouTubeCredentialsFile) != ""
+			hasAccessToken := strings.TrimSpace(c.YouTubeAccessToken) != ""
+
+			if !hasOAuth && !hasCredFile && !hasAccessToken {
+				errs = append(errs, "SOCIAL_PLATFORM 'youtube' requires either (YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET, YOUTUBE_REFRESH_TOKEN) or YOUTUBE_CREDENTIALS_FILE or YOUTUBE_ACCESS_TOKEN")
+			}
+
+			switch c.YouTubePrivacyStatus {
+			case "public", "unlisted", "private":
+				// valid
+			default:
+				errs = append(errs, fmt.Sprintf("invalid YOUTUBE_PRIVACY_STATUS %q (must be 'public', 'unlisted', or 'private')", c.YouTubePrivacyStatus))
+			}
+		case "mock":
+			// Mock doesn't require credentials
+		default:
+			errs = append(errs, fmt.Sprintf("unsupported SOCIAL_PLATFORM %q (supported: 'youtube', 'mock')", c.SocialPlatform))
+		}
+	}
+
 	// Validate DB Type
 	switch c.DBType {
 	case "sqlite":
@@ -212,6 +261,18 @@ func getEnvOrDefault(key, fallback string) string {
 		return strings.TrimSpace(val)
 	}
 	return fallback
+}
+
+func getBoolOrDefault(key string, fallback bool) bool {
+	val := os.Getenv(key)
+	if strings.TrimSpace(val) == "" {
+		return fallback
+	}
+	b, err := strconv.ParseBool(strings.TrimSpace(val))
+	if err != nil {
+		return fallback
+	}
+	return b
 }
 
 func getDurationOrDefault(key string, fallback time.Duration) time.Duration {

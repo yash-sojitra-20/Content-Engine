@@ -43,6 +43,10 @@ Content-Engine is a scheduled, headless pipeline that orchestrates the end-to-en
              (status: video_uploaded)
                        │
                        ▼
+        Publish to Social Media (YouTube Shorts)
+            (status: social_published)
+                       │
+                       ▼
              Record Run Metadata
             (status: succeeded)
 ```
@@ -204,6 +208,7 @@ Content-Engine/
 │   ├── content/             # Gemini LLM & brief schema validation
 │   ├── video/               # Veo, Luma & Mock video providers
 │   ├── storage/             # Google Drive & local disk storage
+│   ├── social/              # YouTube Shorts & Mock social publishers
 │   ├── store/               # SQLite, Postgres & JSONL run persistence
 │   ├── retry/               # Exponential backoff & Retry-After logic
 │   ├── pipeline/            # End-to-end execution coordinator
@@ -235,7 +240,8 @@ go test -v ./...
 ## Phase 2 Roadmap
 
 Once the autonomous pipeline is running reliably in Phase 1:
-- [ ] Social Media Publishing (YouTube Shorts API, Instagram Graph API, Facebook Pages API, X API v2)
+- [x] Social Media Publishing (YouTube Shorts via YouTube Data API v3)
+- [ ] Additional Social Adapters (Instagram Graph API, TikTok Creator API, X API v2)
 - [ ] Content calendar and niche strategy planner
 - [ ] Automated subtitles, audio mastering, and watermarking via FFmpeg
 - [ ] Webhook notifications (Slack/Discord) for run summaries and failure alerts

@@ -53,6 +53,9 @@ func (s *SQLiteStore) migrate() error {
 		local_video_path TEXT,
 		drive_file_id TEXT,
 		drive_file_link TEXT,
+		social_platform TEXT,
+		social_post_id TEXT,
+		social_post_url TEXT,
 		error_stage TEXT,
 		error_message TEXT,
 		retry_count INTEGER DEFAULT 0
@@ -60,8 +63,16 @@ func (s *SQLiteStore) migrate() error {
 	CREATE INDEX IF NOT EXISTS idx_runs_status ON runs(status);
 	CREATE INDEX IF NOT EXISTS idx_runs_started_at ON runs(started_at);
 	`
-	_, err := s.db.Exec(query)
-	return err
+	if _, err := s.db.Exec(query); err != nil {
+		return err
+	}
+
+	// Graceful backwards-compatible column migrations for existing databases
+	_, _ = s.db.Exec("ALTER TABLE runs ADD COLUMN social_platform TEXT;")
+	_, _ = s.db.Exec("ALTER TABLE runs ADD COLUMN social_post_id TEXT;")
+	_, _ = s.db.Exec("ALTER TABLE runs ADD COLUMN social_post_url TEXT;")
+
+	return nil
 }
 
 func (s *SQLiteStore) CreateRun(ctx context.Context, run *Run) error {
@@ -77,8 +88,9 @@ func (s *SQLiteStore) CreateRun(ctx context.Context, run *Run) error {
 	INSERT INTO runs (
 		id, status, started_at, completed_at, brief_json,
 		provider_job_id, local_video_path, drive_file_id,
-		drive_file_link, error_stage, error_message, retry_count
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		drive_file_link, social_platform, social_post_id, social_post_url,
+		error_stage, error_message, retry_count
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	_, err := s.db.ExecContext(ctx, query,
 		run.ID,
@@ -90,6 +102,9 @@ func (s *SQLiteStore) CreateRun(ctx context.Context, run *Run) error {
 		run.LocalVideoPath,
 		run.DriveFileID,
 		run.DriveFileLink,
+		run.SocialPlatform,
+		run.SocialPostID,
+		run.SocialPostURL,
 		run.ErrorStage,
 		run.ErrorMessage,
 		run.RetryCount,
@@ -115,6 +130,9 @@ func (s *SQLiteStore) UpdateRun(ctx context.Context, run *Run) error {
 		local_video_path = ?,
 		drive_file_id = ?,
 		drive_file_link = ?,
+		social_platform = ?,
+		social_post_id = ?,
+		social_post_url = ?,
 		error_stage = ?,
 		error_message = ?,
 		retry_count = ?
@@ -128,6 +146,9 @@ func (s *SQLiteStore) UpdateRun(ctx context.Context, run *Run) error {
 		run.LocalVideoPath,
 		run.DriveFileID,
 		run.DriveFileLink,
+		run.SocialPlatform,
+		run.SocialPostID,
+		run.SocialPostURL,
 		run.ErrorStage,
 		run.ErrorMessage,
 		run.RetryCount,
@@ -150,7 +171,8 @@ func (s *SQLiteStore) GetRun(ctx context.Context, id string) (*Run, error) {
 	query := `
 	SELECT id, status, started_at, completed_at, brief_json,
 	       provider_job_id, local_video_path, drive_file_id,
-	       drive_file_link, error_stage, error_message, retry_count
+	       drive_file_link, social_platform, social_post_id, social_post_url,
+	       error_stage, error_message, retry_count
 	FROM runs WHERE id = ?
 	`
 	row := s.db.QueryRowContext(ctx, query, id)
@@ -164,6 +186,9 @@ func (s *SQLiteStore) GetRun(ctx context.Context, id string) (*Run, error) {
 		lPath       sql.NullString
 		dFileID     sql.NullString
 		dFileLink   sql.NullString
+		sPlatform   sql.NullString
+		sPostID     sql.NullString
+		sPostURL    sql.NullString
 		eStage      sql.NullString
 		eMsg        sql.NullString
 	)
@@ -178,6 +203,9 @@ func (s *SQLiteStore) GetRun(ctx context.Context, id string) (*Run, error) {
 		&lPath,
 		&dFileID,
 		&dFileLink,
+		&sPlatform,
+		&sPostID,
+		&sPostURL,
 		&eStage,
 		&eMsg,
 		&run.RetryCount,
@@ -211,6 +239,15 @@ func (s *SQLiteStore) GetRun(ctx context.Context, id string) (*Run, error) {
 	if dFileLink.Valid {
 		run.DriveFileLink = dFileLink.String
 	}
+	if sPlatform.Valid {
+		run.SocialPlatform = sPlatform.String
+	}
+	if sPostID.Valid {
+		run.SocialPostID = sPostID.String
+	}
+	if sPostURL.Valid {
+		run.SocialPostURL = sPostURL.String
+	}
 	if eStage.Valid {
 		run.ErrorStage = eStage.String
 	}
@@ -228,7 +265,8 @@ func (s *SQLiteStore) ListRuns(ctx context.Context, limit int) ([]*Run, error) {
 	query := `
 	SELECT id, status, started_at, completed_at, brief_json,
 	       provider_job_id, local_video_path, drive_file_id,
-	       drive_file_link, error_stage, error_message, retry_count
+	       drive_file_link, social_platform, social_post_id, social_post_url,
+	       error_stage, error_message, retry_count
 	FROM runs
 	ORDER BY started_at DESC
 	LIMIT ?
@@ -250,6 +288,9 @@ func (s *SQLiteStore) ListRuns(ctx context.Context, limit int) ([]*Run, error) {
 			lPath       sql.NullString
 			dFileID     sql.NullString
 			dFileLink   sql.NullString
+			sPlatform   sql.NullString
+			sPostID     sql.NullString
+			sPostURL    sql.NullString
 			eStage      sql.NullString
 			eMsg        sql.NullString
 		)
@@ -263,6 +304,9 @@ func (s *SQLiteStore) ListRuns(ctx context.Context, limit int) ([]*Run, error) {
 			&lPath,
 			&dFileID,
 			&dFileLink,
+			&sPlatform,
+			&sPostID,
+			&sPostURL,
 			&eStage,
 			&eMsg,
 			&run.RetryCount,
@@ -292,6 +336,15 @@ func (s *SQLiteStore) ListRuns(ctx context.Context, limit int) ([]*Run, error) {
 		}
 		if dFileLink.Valid {
 			run.DriveFileLink = dFileLink.String
+		}
+		if sPlatform.Valid {
+			run.SocialPlatform = sPlatform.String
+		}
+		if sPostID.Valid {
+			run.SocialPostID = sPostID.String
+		}
+		if sPostURL.Valid {
+			run.SocialPostURL = sPostURL.String
 		}
 		if eStage.Valid {
 			run.ErrorStage = eStage.String

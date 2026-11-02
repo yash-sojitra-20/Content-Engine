@@ -14,6 +14,7 @@ import (
 	"github.com/yash-sojitra-20/content-engine/internal/observability"
 	"github.com/yash-sojitra-20/content-engine/internal/pipeline"
 	"github.com/yash-sojitra-20/content-engine/internal/scheduler"
+	"github.com/yash-sojitra-20/content-engine/internal/social"
 	"github.com/yash-sojitra-20/content-engine/internal/storage"
 	"github.com/yash-sojitra-20/content-engine/internal/store"
 	"github.com/yash-sojitra-20/content-engine/internal/video"
@@ -46,6 +47,8 @@ func main() {
 		slog.String("llm_provider", cfg.LLMProvider),
 		slog.String("video_provider", cfg.VideoProvider),
 		slog.String("storage_provider", cfg.StorageProvider),
+		slog.Bool("social_publish_enabled", cfg.SocialPublishEnabled),
+		slog.String("social_platform", cfg.SocialPlatform),
 		slog.String("db_type", cfg.DBType),
 	)
 
@@ -70,8 +73,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Initialize Social Media Publisher
+	socialPublisher, err := initSocial(context.Background(), cfg)
+	if err != nil {
+		logger.Error("Failed to initialize social media publisher", observability.ErrorAttr(err))
+		os.Exit(1)
+	}
+
 	// Build Pipeline
-	p := pipeline.NewPipeline(cfg, llmProvider, videoProvider, storageProvider, runStore)
+	p := pipeline.NewPipeline(cfg, llmProvider, videoProvider, storageProvider, socialPublisher, runStore)
 
 	// Handle Run Modes
 	if cfg.RunMode == "once" {
@@ -118,6 +128,9 @@ func runOnce(p *pipeline.Pipeline) {
 	}
 	fmt.Printf(" Provider Job:%s\n", run.ProviderJobID)
 	fmt.Printf(" File Link:   %s\n", run.DriveFileLink)
+	if run.SocialPostURL != "" {
+		fmt.Printf(" Social Post: %s (%s)\n", run.SocialPostURL, run.SocialPlatform)
+	}
 	fmt.Printf("=======================================================\n\n")
 }
 
@@ -178,5 +191,25 @@ func initStorage(ctx context.Context, cfg *config.Config) (storage.StorageProvid
 		return storage.NewGoogleDriveProvider(ctx, cfg.GDriveCredentialsFile, cfg.GDriveFolderID)
 	default:
 		return storage.NewLocalStorageProvider(cfg.LocalStorageDir), nil
+	}
+}
+
+func initSocial(ctx context.Context, cfg *config.Config) (social.Publisher, error) {
+	if !cfg.SocialPublishEnabled {
+		return nil, nil
+	}
+	switch cfg.SocialPlatform {
+	case "youtube":
+		return social.NewYouTubePublisher(ctx, social.YouTubeConfig{
+			ClientID:        cfg.YouTubeClientID,
+			ClientSecret:    cfg.YouTubeClientSecret,
+			RefreshToken:    cfg.YouTubeRefreshToken,
+			AccessToken:     cfg.YouTubeAccessToken,
+			CredentialsFile: cfg.YouTubeCredentialsFile,
+			PrivacyStatus:   cfg.YouTubePrivacyStatus,
+			DefaultCategory: cfg.YouTubeCategoryID,
+		})
+	default:
+		return social.NewMockPublisher(), nil
 	}
 }

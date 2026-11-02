@@ -17,6 +17,7 @@ const (
 	StatusVideoGenerating          RunStatus = "video_generating"
 	StatusVideoDownloaded          RunStatus = "video_downloaded"
 	StatusVideoUploaded            RunStatus = "video_uploaded"
+	StatusSocialPublished          RunStatus = "social_published"
 	StatusSucceeded                RunStatus = "succeeded"
 	StatusFailed                   RunStatus = "failed"
 )
@@ -32,6 +33,9 @@ type Run struct {
 	LocalVideoPath string                `json:"local_video_path,omitempty"`
 	DriveFileID    string                `json:"drive_file_id,omitempty"`
 	DriveFileLink  string                `json:"drive_file_link,omitempty"`
+	SocialPlatform string                `json:"social_platform,omitempty"`
+	SocialPostID   string                `json:"social_post_id,omitempty"`
+	SocialPostURL  string                `json:"social_post_url,omitempty"`
 	ErrorStage     string                `json:"error_stage,omitempty"`
 	ErrorMessage   string                `json:"error_message,omitempty"`
 	RetryCount     int                   `json:"retry_count"`
