@@ -41,7 +41,7 @@ func TestSchedulerOverlapPrevention(t *testing.T) {
 		t.Fatalf("failed to init test store: %v", err)
 	}
 
-	p := pipeline.NewPipeline(cfg, llm, vid, stor, st)
+	p := pipeline.NewPipeline(cfg, llm, vid, stor, nil, st)
 
 	sched, err := NewScheduler("0 * * * *", time.UTC, p)
 	if err != nil {
@@ -88,7 +88,7 @@ func TestSchedulerRunAndGracefulStop(t *testing.T) {
 		t.Fatalf("failed to init test store: %v", err)
 	}
 
-	p := pipeline.NewPipeline(cfg, llm, vid, stor, st)
+	p := pipeline.NewPipeline(cfg, llm, vid, stor, nil, st)
 
 	sched, err := NewScheduler("0 0 1 1 *", time.UTC, p)
 	if err != nil {

@@ -59,10 +59,13 @@ func TestSQLiteStoreCRUD(t *testing.T) {
 
 	// 3. Update Run
 	completedAt := now.Add(1 * time.Minute)
-	fetched.Status = StatusSucceeded
+	fetched.Status = StatusSocialPublished
 	fetched.CompletedAt = &completedAt
 	fetched.DriveFileID = "drive-file-999"
 	fetched.DriveFileLink = "https://drive.google.com/file/d/drive-file-999/view"
+	fetched.SocialPlatform = "youtube"
+	fetched.SocialPostID = "yt_test_vid_123"
+	fetched.SocialPostURL = "https://youtube.com/shorts/yt_test_vid_123"
 
 	if err := store.UpdateRun(ctx, fetched); err != nil {
 		t.Fatalf("UpdateRun failed: %v", err)
@@ -72,11 +75,15 @@ func TestSQLiteStoreCRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetRun after update failed: %v", err)
 	}
-	if updated.Status != StatusSucceeded {
-		t.Errorf("expected status 'succeeded', got %v", updated.Status)
+	if updated.Status != StatusSocialPublished {
+		t.Errorf("expected status 'social_published', got %v", updated.Status)
 	}
 	if updated.DriveFileID != "drive-file-999" {
 		t.Errorf("expected DriveFileID drive-file-999, got %v", updated.DriveFileID)
+	}
+	if updated.SocialPlatform != "youtube" || updated.SocialPostID != "yt_test_vid_123" || updated.SocialPostURL != "https://youtube.com/shorts/yt_test_vid_123" {
+		t.Errorf("expected social details to match, got platform=%s, postID=%s, url=%s",
+			updated.SocialPlatform, updated.SocialPostID, updated.SocialPostURL)
 	}
 
 	// 4. List Runs
@@ -86,6 +93,9 @@ func TestSQLiteStoreCRUD(t *testing.T) {
 	}
 	if len(runs) != 1 {
 		t.Errorf("expected 1 run in list, got %d", len(runs))
+	}
+	if runs[0].SocialPostID != "yt_test_vid_123" {
+		t.Errorf("expected ListRuns to return social post ID, got %s", runs[0].SocialPostID)
 	}
 }
 
@@ -131,7 +141,10 @@ func TestJSONLStoreCRUD(t *testing.T) {
 		t.Errorf("mismatch on fetched run: %+v", fetched)
 	}
 
-	fetched.Status = StatusSucceeded
+	fetched.Status = StatusSocialPublished
+	fetched.SocialPlatform = "youtube"
+	fetched.SocialPostID = "jsonl_yt_001"
+	fetched.SocialPostURL = "https://youtube.com/shorts/jsonl_yt_001"
 	if err := store.UpdateRun(ctx, fetched); err != nil {
 		t.Fatalf("UpdateRun failed: %v", err)
 	}
@@ -140,7 +153,10 @@ func TestJSONLStoreCRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetRun after update failed: %v", err)
 	}
-	if updated.Status != StatusSucceeded {
-		t.Errorf("expected status 'succeeded', got %v", updated.Status)
+	if updated.Status != StatusSocialPublished {
+		t.Errorf("expected status 'social_published', got %v", updated.Status)
+	}
+	if updated.SocialPostID != "jsonl_yt_001" {
+		t.Errorf("expected social post ID 'jsonl_yt_001', got %s", updated.SocialPostID)
 	}
 }

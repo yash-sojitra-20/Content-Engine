@@ -53,6 +53,9 @@ func (p *PostgresStore) migrate() error {
 		local_video_path TEXT,
 		drive_file_id VARCHAR(255),
 		drive_file_link TEXT,
+		social_platform VARCHAR(100),
+		social_post_id VARCHAR(255),
+		social_post_url TEXT,
 		error_stage VARCHAR(100),
 		error_message TEXT,
 		retry_count INT DEFAULT 0
@@ -60,8 +63,16 @@ func (p *PostgresStore) migrate() error {
 	CREATE INDEX IF NOT EXISTS idx_runs_status ON runs(status);
 	CREATE INDEX IF NOT EXISTS idx_runs_started_at ON runs(started_at);
 	`
-	_, err := p.db.Exec(query)
-	return err
+	if _, err := p.db.Exec(query); err != nil {
+		return err
+	}
+
+	// Backwards-compatible column additions
+	_, _ = p.db.Exec("ALTER TABLE runs ADD COLUMN IF NOT EXISTS social_platform VARCHAR(100);")
+	_, _ = p.db.Exec("ALTER TABLE runs ADD COLUMN IF NOT EXISTS social_post_id VARCHAR(255);")
+	_, _ = p.db.Exec("ALTER TABLE runs ADD COLUMN IF NOT EXISTS social_post_url TEXT;")
+
+	return nil
 }
 
 func (p *PostgresStore) CreateRun(ctx context.Context, run *Run) error {
@@ -77,8 +88,9 @@ func (p *PostgresStore) CreateRun(ctx context.Context, run *Run) error {
 	INSERT INTO runs (
 		id, status, started_at, completed_at, brief_json,
 		provider_job_id, local_video_path, drive_file_id,
-		drive_file_link, error_stage, error_message, retry_count
-	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+		drive_file_link, social_platform, social_post_id, social_post_url,
+		error_stage, error_message, retry_count
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 	`
 	_, err := p.db.ExecContext(ctx, query,
 		run.ID,
@@ -90,6 +102,9 @@ func (p *PostgresStore) CreateRun(ctx context.Context, run *Run) error {
 		run.LocalVideoPath,
 		run.DriveFileID,
 		run.DriveFileLink,
+		run.SocialPlatform,
+		run.SocialPostID,
+		run.SocialPostURL,
 		run.ErrorStage,
 		run.ErrorMessage,
 		run.RetryCount,
@@ -115,10 +130,13 @@ func (p *PostgresStore) UpdateRun(ctx context.Context, run *Run) error {
 		local_video_path = $5,
 		drive_file_id = $6,
 		drive_file_link = $7,
-		error_stage = $8,
-		error_message = $9,
-		retry_count = $10
-	WHERE id = $11
+		social_platform = $8,
+		social_post_id = $9,
+		social_post_url = $10,
+		error_stage = $11,
+		error_message = $12,
+		retry_count = $13
+	WHERE id = $14
 	`
 	res, err := p.db.ExecContext(ctx, query,
 		string(run.Status),
@@ -128,6 +146,9 @@ func (p *PostgresStore) UpdateRun(ctx context.Context, run *Run) error {
 		run.LocalVideoPath,
 		run.DriveFileID,
 		run.DriveFileLink,
+		run.SocialPlatform,
+		run.SocialPostID,
+		run.SocialPostURL,
 		run.ErrorStage,
 		run.ErrorMessage,
 		run.RetryCount,
@@ -150,7 +171,8 @@ func (p *PostgresStore) GetRun(ctx context.Context, id string) (*Run, error) {
 	query := `
 	SELECT id, status, started_at, completed_at, brief_json,
 	       provider_job_id, local_video_path, drive_file_id,
-	       drive_file_link, error_stage, error_message, retry_count
+	       drive_file_link, social_platform, social_post_id, social_post_url,
+	       error_stage, error_message, retry_count
 	FROM runs WHERE id = $1
 	`
 	row := p.db.QueryRowContext(ctx, query, id)
@@ -164,6 +186,9 @@ func (p *PostgresStore) GetRun(ctx context.Context, id string) (*Run, error) {
 		lPath       sql.NullString
 		dFileID     sql.NullString
 		dFileLink   sql.NullString
+		sPlatform   sql.NullString
+		sPostID     sql.NullString
+		sPostURL    sql.NullString
 		eStage      sql.NullString
 		eMsg        sql.NullString
 	)
@@ -178,6 +203,9 @@ func (p *PostgresStore) GetRun(ctx context.Context, id string) (*Run, error) {
 		&lPath,
 		&dFileID,
 		&dFileLink,
+		&sPlatform,
+		&sPostID,
+		&sPostURL,
 		&eStage,
 		&eMsg,
 		&run.RetryCount,
@@ -211,6 +239,15 @@ func (p *PostgresStore) GetRun(ctx context.Context, id string) (*Run, error) {
 	if dFileLink.Valid {
 		run.DriveFileLink = dFileLink.String
 	}
+	if sPlatform.Valid {
+		run.SocialPlatform = sPlatform.String
+	}
+	if sPostID.Valid {
+		run.SocialPostID = sPostID.String
+	}
+	if sPostURL.Valid {
+		run.SocialPostURL = sPostURL.String
+	}
 	if eStage.Valid {
 		run.ErrorStage = eStage.String
 	}
@@ -228,7 +265,8 @@ func (p *PostgresStore) ListRuns(ctx context.Context, limit int) ([]*Run, error)
 	query := `
 	SELECT id, status, started_at, completed_at, brief_json,
 	       provider_job_id, local_video_path, drive_file_id,
-	       drive_file_link, error_stage, error_message, retry_count
+	       drive_file_link, social_platform, social_post_id, social_post_url,
+	       error_stage, error_message, retry_count
 	FROM runs
 	ORDER BY started_at DESC
 	LIMIT $1
@@ -250,6 +288,9 @@ func (p *PostgresStore) ListRuns(ctx context.Context, limit int) ([]*Run, error)
 			lPath       sql.NullString
 			dFileID     sql.NullString
 			dFileLink   sql.NullString
+			sPlatform   sql.NullString
+			sPostID     sql.NullString
+			sPostURL    sql.NullString
 			eStage      sql.NullString
 			eMsg        sql.NullString
 		)
@@ -263,6 +304,9 @@ func (p *PostgresStore) ListRuns(ctx context.Context, limit int) ([]*Run, error)
 			&lPath,
 			&dFileID,
 			&dFileLink,
+			&sPlatform,
+			&sPostID,
+			&sPostURL,
 			&eStage,
 			&eMsg,
 			&run.RetryCount,
@@ -292,6 +336,15 @@ func (p *PostgresStore) ListRuns(ctx context.Context, limit int) ([]*Run, error)
 		}
 		if dFileLink.Valid {
 			run.DriveFileLink = dFileLink.String
+		}
+		if sPlatform.Valid {
+			run.SocialPlatform = sPlatform.String
+		}
+		if sPostID.Valid {
+			run.SocialPostID = sPostID.String
+		}
+		if sPostURL.Valid {
+			run.SocialPostURL = sPostURL.String
 		}
 		if eStage.Valid {
 			run.ErrorStage = eStage.String
